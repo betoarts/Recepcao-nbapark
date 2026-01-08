@@ -14,7 +14,7 @@ export function Modal({ isOpen, onClose, children, title, className }: ModalProp
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4">
+    <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center p-4">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity animate-in fade-in" 
@@ -23,10 +23,10 @@ export function Modal({ isOpen, onClose, children, title, className }: ModalProp
       
       {/* Content */}
       <div className={cn(
-        "relative w-full max-w-lg bg-white rounded-t-3xl md:rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom md:slide-in-from-bottom-10 fade-in duration-200", 
+        "relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-top-10 fade-in duration-200 mt-4 md:mt-0 max-h-[85vh] md:max-h-[90vh] flex flex-col", 
         className
       )}>
-        <div className="p-6 md:p-8 max-h-[90vh] overflow-y-auto">
+        <div className="p-6 md:p-8 overflow-y-auto flex-1">
            <div className="flex justify-between items-center mb-6">
                 {title && <h2 className="text-2xl font-bold text-gray-900">{title}</h2>}
                 <button 
