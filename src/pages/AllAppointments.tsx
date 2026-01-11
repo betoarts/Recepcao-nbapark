@@ -64,7 +64,7 @@ export default function AllAppointments() {
     
     setSendingWebhook(true);
     try {
-      const { data, error } = await supabase.functions.invoke('send-appointment-webhook', {
+      const { error } = await supabase.functions.invoke('send-appointment-webhook', {
         body: { appointment_id: selectedAppointment.id }
       });
       
