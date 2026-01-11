@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Loader2, Calendar, Clock, User, AlignLeft, Users, Trash2 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { format } from 'date-fns';
 import type { Employee, Appointment } from '../../types';
 
 interface AppointmentFormProps {
@@ -175,6 +176,27 @@ export function AppointmentForm({ onSuccess, onCancel, initialDate, targetEmploy
 
             if (insertError) throw insertError;
             savedAppointmentId = newApt.id;
+
+            // Notify receptionists if an employee (non-receptionist) creates an appointment
+            if (!isReceptionist) {
+                // Get all receptionists
+                const { data: receptionists } = await supabase
+                    .from('employees')
+                    .select('id')
+                    .eq('role', 'receptionist');
+                
+                if (receptionists && receptionists.length > 0) {
+                    const notifications = receptionists.map(r => ({
+                        recipient_id: r.id,
+                        type: 'appointment',
+                        title: 'Nova Reunião Agendada',
+                        content: `${employee?.full_name || 'Funcionário'} agendou "${title}" para ${format(startDateTime, 'dd/MM HH:mm')}`,
+                        read: false
+                    }));
+                    
+                    await supabase.from('notifications').insert(notifications);
+                }
+            }
         }
 
         // Trigger Webhook if Receptionist and new appointment (or always? Request implied "when created")
