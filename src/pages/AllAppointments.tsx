@@ -31,8 +31,9 @@ export default function AllAppointments() {
   const fetchAppointments = useCallback(async () => {
     setLoading(true);
     
-    const startISO = startOfDay(new Date(startDate)).toISOString();
-    const endISO = endOfDay(new Date(endDate)).toISOString();
+    // Parse dates in local timezone (add T00:00:00 to prevent UTC interpretation)
+    const startISO = startOfDay(new Date(startDate + 'T00:00:00')).toISOString();
+    const endISO = endOfDay(new Date(endDate + 'T00:00:00')).toISOString();
 
     const { data, error } = await supabase
       .from('appointments')
