@@ -31,16 +31,27 @@ export function AppointmentForm({ onSuccess, onCancel, initialDate, targetEmploy
     ? new Date(editingAppointment.start_time).toISOString().split('T')[0] 
     : initialDate ? initialDate.toISOString().split('T')[0] : ''
   );
-  const [startTime, setStartTime] = useState(
-    editingAppointment 
-    ? new Date(editingAppointment.start_time).toTimeString().substring(0, 5) 
-    : '09:00'
-  );
-  const [endTime, setEndTime] = useState(
-    editingAppointment 
-    ? new Date(editingAppointment.end_time).toTimeString().substring(0, 5) 
-    : '10:00'
-  );
+  const [startTime, setStartTime] = useState(() => {
+    if (editingAppointment) {
+      return new Date(editingAppointment.start_time).toTimeString().substring(0, 5);
+    }
+    // Use current time rounded to next 15 minutes
+    const now = new Date();
+    const minutes = Math.ceil(now.getMinutes() / 15) * 15;
+    now.setMinutes(minutes, 0, 0);
+    return now.toTimeString().substring(0, 5);
+  });
+  const [endTime, setEndTime] = useState(() => {
+    if (editingAppointment) {
+      return new Date(editingAppointment.end_time).toTimeString().substring(0, 5);
+    }
+    // Use current time + 1 hour rounded to next 15 minutes
+    const now = new Date();
+    const minutes = Math.ceil(now.getMinutes() / 15) * 15;
+    now.setMinutes(minutes, 0, 0);
+    now.setHours(now.getHours() + 1);
+    return now.toTimeString().substring(0, 5);
+  });
   const [type, setType] = useState<AppointmentType>(editingAppointment?.type || 'internal');
   const [guestName, setGuestName] = useState(editingAppointment?.guest_name || '');
   const [description, setDescription] = useState(editingAppointment?.description || '');
@@ -61,15 +72,15 @@ export function AppointmentForm({ onSuccess, onCancel, initialDate, targetEmploy
         .then(({ data, error }) => {
           if (!error && data) {
             setEmployees(data as Employee[]);
-            // If no target, pre-select first employee
-            if (!targetEmployeeId && data.length > 0) {
+            // Only pre-select first employee if creating new appointment AND no target specified
+            if (!editingAppointment && !targetEmployeeId && data.length > 0) {
               setSelectedEmployeeId(data[0].id);
             }
           }
           setLoadingEmployees(false);
         });
     }
-  }, [isReceptionist, targetEmployeeId]);
+  }, [isReceptionist, targetEmployeeId, editingAppointment]);
 
   // Set target employee when prop changes
   useEffect(() => {

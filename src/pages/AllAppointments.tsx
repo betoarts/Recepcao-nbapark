@@ -2,11 +2,14 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Appointment, Employee } from '../types';
 import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
-import { Loader2, Calendar, Search, User, Clock, Filter } from 'lucide-react';
+import { Loader2, Calendar, Search, User, Clock, Filter, X, Send, FileText, Pencil } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { toast } from 'sonner';
+import { Modal } from '../components/Layout/Modal';
+import { AppointmentForm } from '../components/Forms/AppointmentForm';
 
 interface AppointmentWithHost extends Appointment {
-  host?: Pick<Employee, 'full_name' | 'photo_url'>;
+  host?: Pick<Employee, 'full_name' | 'photo_url' | 'email' | 'phone'>;
 }
 
 export default function AllAppointments() {
@@ -21,6 +24,9 @@ export default function AllAppointments() {
     return today.toISOString().split('T')[0];
   });
   const [searchFilter, setSearchFilter] = useState('');
+  const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithHost | null>(null);
+  const [sendingWebhook, setSendingWebhook] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   const fetchAppointments = async () => {
     setLoading(true);
@@ -34,7 +40,9 @@ export default function AllAppointments() {
         *,
         host:employees!host_id (
           full_name,
-          photo_url
+          photo_url,
+          email,
+          phone
         )
       `)
       .gte('start_time', startISO)
@@ -50,6 +58,26 @@ export default function AllAppointments() {
   useEffect(() => {
     fetchAppointments();
   }, [startDate, endDate]);
+
+  const handleSendWebhook = async () => {
+    if (!selectedAppointment) return;
+    
+    setSendingWebhook(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-appointment-webhook', {
+        body: { appointment_id: selectedAppointment.id }
+      });
+      
+      if (error) throw error;
+      
+      toast.success('Webhook enviado com sucesso!');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Erro ao enviar webhook';
+      toast.error(message);
+    } finally {
+      setSendingWebhook(false);
+    }
+  };
 
   const filteredAppointments = appointments.filter(apt => {
     const search = searchFilter.toLowerCase();
@@ -165,7 +193,11 @@ export default function AllAppointments() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {filteredAppointments.map((apt) => (
-                  <tr key={apt.id} className="hover:bg-gray-50/50 transition-colors">
+                  <tr 
+                    key={apt.id} 
+                    onClick={() => setSelectedAppointment(apt)}
+                    className="hover:bg-blue-50/50 transition-colors cursor-pointer"
+                  >
                     <td className="px-4 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4 text-gray-400" />
@@ -212,6 +244,129 @@ export default function AllAppointments() {
           </div>
         )}
       </div>
+
+      {/* Appointment Details Modal */}
+      {selectedAppointment && (
+        <div className="fixed inset-0 z-50 flex items-start md:items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setSelectedAppointment(null)} />
+          
+          <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-top-10 fade-in duration-200 mt-4 md:mt-0 max-h-[85vh] flex flex-col">
+            <div className="p-6 overflow-y-auto flex-1">
+              {/* Header */}
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">{selectedAppointment.title}</h2>
+                  <p className="text-gray-500 flex items-center gap-2 mt-1">
+                    <Calendar className="h-4 w-4" />
+                    {format(parseISO(selectedAppointment.start_time), 'dd/MM/yyyy')}
+                    <span className="mx-1">•</span>
+                    <Clock className="h-4 w-4" />
+                    {format(parseISO(selectedAppointment.start_time), 'HH:mm')} - {format(parseISO(selectedAppointment.end_time), 'HH:mm')}
+                  </p>
+                </div>
+                <button 
+                  onClick={() => setSelectedAppointment(null)}
+                  className="p-2 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+                >
+                  <X className="h-5 w-5 text-gray-500" />
+                </button>
+              </div>
+
+              {/* Type Badge */}
+              <div className="mb-6">
+                <span className={cn("px-3 py-1.5 rounded-full text-sm font-medium", getTypeColor(selectedAppointment.type))}>
+                  {getTypeLabel(selectedAppointment.type)}
+                </span>
+              </div>
+
+              {/* Details */}
+              <div className="space-y-4">
+                {/* Host */}
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <p className="text-xs font-medium text-gray-500 uppercase mb-2">Funcionário</p>
+                  <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 rounded-full bg-white border border-gray-200 flex items-center justify-center overflow-hidden">
+                      {selectedAppointment.host?.photo_url ? (
+                        <img src={selectedAppointment.host.photo_url} className="h-full w-full object-cover" />
+                      ) : (
+                        <User className="h-6 w-6 text-gray-400" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900">{selectedAppointment.host?.full_name}</p>
+                      {selectedAppointment.host?.email && (
+                        <p className="text-sm text-gray-500">{selectedAppointment.host.email}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Guest */}
+                {selectedAppointment.guest_name && (
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-xs font-medium text-gray-500 uppercase mb-2">Visitante</p>
+                    <p className="font-semibold text-gray-900">{selectedAppointment.guest_name}</p>
+                  </div>
+                )}
+
+                {/* Notes */}
+                {selectedAppointment.description && (
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-xs font-medium text-gray-500 uppercase mb-2 flex items-center gap-1">
+                      <FileText className="h-3 w-3" /> Observações
+                    </p>
+                    <p className="text-gray-700">{selectedAppointment.description}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Footer Actions */}
+            <div className="p-4 border-t border-gray-100 bg-gray-50 flex gap-3">
+              <button
+                onClick={() => setIsEditing(true)}
+                className="flex-1 py-3 px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold rounded-xl flex items-center justify-center gap-2 transition-colors"
+              >
+                <Pencil className="h-5 w-5" />
+                Editar
+              </button>
+              <button
+                onClick={handleSendWebhook}
+                disabled={sendingWebhook}
+                className="flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+              >
+                {sendingWebhook ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <>
+                    <Send className="h-5 w-5" />
+                    Enviar Lembrete
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      <Modal
+        isOpen={isEditing}
+        onClose={() => setIsEditing(false)}
+        title="Editar Agendamento"
+      >
+        <AppointmentForm
+          editingAppointment={selectedAppointment as Appointment}
+          initialDate={selectedAppointment ? new Date(selectedAppointment.start_time) : undefined}
+          onSuccess={() => {
+            setIsEditing(false);
+            setSelectedAppointment(null);
+            fetchAppointments();
+            toast.success('Agendamento atualizado!');
+          }}
+          onCancel={() => setIsEditing(false)}
+        />
+      </Modal>
     </div>
   );
 }
