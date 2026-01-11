@@ -18,6 +18,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const location = useLocation();
   const navigate = useNavigate();
   const lastCheckedMeetingsRef = useRef<Set<string>>(new Set());
+  const sentRemindersRef = useRef<Set<string>>(new Set());
 
   // Check for ended meetings (for receptionists)
   useEffect(() => {
@@ -62,6 +63,59 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     const interval = setInterval(checkEndedMeetings, 60000);
     // Initial check
     checkEndedMeetings();
+
+    return () => clearInterval(interval);
+  }, [user, employee?.role]);
+
+  // Send 30-minute reminder webhooks (for receptionists)
+  useEffect(() => {
+    if (!user || employee?.role !== 'receptionist') return;
+
+    const sendUpcomingReminders = async () => {
+      const now = new Date();
+      const in25Minutes = new Date(now.getTime() + 25 * 60 * 1000);
+      const in35Minutes = new Date(now.getTime() + 35 * 60 * 1000);
+      
+      // Find meetings starting in 25-35 minutes window (captures ~30 min mark)
+      const { data: upcomingMeetings } = await supabase
+        .from('appointments')
+        .select('id, title')
+        .gte('start_time', in25Minutes.toISOString())
+        .lte('start_time', in35Minutes.toISOString());
+
+      if (upcomingMeetings) {
+        for (const meeting of upcomingMeetings) {
+          // Only send if we haven't already sent for this meeting
+          if (!sentRemindersRef.current.has(meeting.id)) {
+            sentRemindersRef.current.add(meeting.id);
+            
+            // Trigger webhook
+            supabase.functions.invoke('send-appointment-webhook', {
+              body: { appointment_id: meeting.id }
+            }).then(({ error }) => {
+              if (error) {
+                console.error('30-min reminder webhook failed:', error);
+              } else {
+                console.log('30-min reminder sent for:', meeting.title);
+                toast.success('Lembrete enviado', {
+                  description: `Lembrete de 30min enviado para "${meeting.title}"`,
+                });
+              }
+            });
+          }
+        }
+      }
+
+      // Clean old entries periodically
+      if (sentRemindersRef.current.size > 200) {
+        sentRemindersRef.current.clear();
+      }
+    };
+
+    // Check every 5 minutes
+    const interval = setInterval(sendUpcomingReminders, 5 * 60 * 1000);
+    // Initial check
+    sendUpcomingReminders();
 
     return () => clearInterval(interval);
   }, [user, employee?.role]);
