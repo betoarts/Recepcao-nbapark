@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Appointment, Employee } from '../types';
 import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
@@ -28,7 +28,7 @@ export default function AllAppointments() {
   const [sendingWebhook, setSendingWebhook] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
-  const fetchAppointments = async () => {
+  const fetchAppointments = useCallback(async () => {
     setLoading(true);
     
     const startISO = startOfDay(new Date(startDate)).toISOString();
@@ -53,11 +53,11 @@ export default function AllAppointments() {
       setAppointments(data as AppointmentWithHost[]);
     }
     setLoading(false);
-  };
+  }, [startDate, endDate]);
 
   useEffect(() => {
     fetchAppointments();
-  }, [startDate, endDate]);
+  }, [fetchAppointments]);
 
   const handleSendWebhook = async () => {
     if (!selectedAppointment) return;

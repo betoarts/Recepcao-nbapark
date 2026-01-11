@@ -5,6 +5,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { MessageSquare, Calendar, Bell } from 'lucide-react';
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface NotificationContextType {}
 
 const NotificationContext = createContext<NotificationContextType>({});
@@ -41,12 +42,12 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         .lte('end_time', now.toISOString());
 
       if (endedMeetings) {
-        endedMeetings.forEach((meeting: any) => {
+        endedMeetings.forEach((meeting) => {
           // Only alert if we haven't already alerted for this meeting
           if (!lastCheckedMeetingsRef.current.has(meeting.id)) {
             lastCheckedMeetingsRef.current.add(meeting.id);
             toast.info(`Reunião Encerrada`, {
-              description: `"${meeting.title}" de ${meeting.host?.full_name || 'Funcionário'} terminou.`,
+              description: `"${meeting.title}" de ${(meeting.host as { full_name: string }[] | null)?.[0]?.full_name || 'Funcionário'} terminou.`,
               icon: <Bell className="h-4 w-4 text-amber-600" />,
             });
           }
