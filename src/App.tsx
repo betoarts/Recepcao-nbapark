@@ -17,6 +17,7 @@ import Notifications from './pages/Notifications';
 import Chat from './pages/Chat';
 import Help from './pages/Help';
 import Admin from './pages/Admin';
+import AllAppointments from './pages/AllAppointments';
 
 function App() {
   return (
@@ -39,6 +40,7 @@ function App() {
                 <Route path="/departments" element={<Departments />} />
                 <Route path="/notifications" element={<Notifications />} />
                 <Route path="/chat" element={<Chat />} />
+                <Route path="/appointments" element={<AllAppointments />} />
                 <Route path="/help" element={<Help />} />
                 {/* Hidden admin route - /sudo */}
                 <Route path="/sudo" element={<Admin />} />

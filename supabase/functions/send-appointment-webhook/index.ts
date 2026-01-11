@@ -71,14 +71,22 @@ serve(async (req) => {
 
     // Always include all selected fields with English names
     if (fields.includes('Data da Visita')) {
+        // Parse the ISO date and convert to São Paulo timezone (UTC-3)
+        const utcDate = new Date(appointment.start_time)
+        // Adjust for São Paulo timezone (UTC-3)
+        const saoPauloOffset = -3 * 60 // -3 hours in minutes
+        const localDate = new Date(utcDate.getTime() + saoPauloOffset * 60 * 1000)
+        
         // Format date as DD-MM-YYYY
-        const dateStr = appointment.start_time?.split('T')[0] || ''
-        if (dateStr) {
-            const [year, month, day] = dateStr.split('-')
-            payload.appointment_date = `${day}-${month}-${year}`
-        }
+        const day = String(localDate.getUTCDate()).padStart(2, '0')
+        const month = String(localDate.getUTCMonth() + 1).padStart(2, '0')
+        const year = localDate.getUTCFullYear()
+        payload.appointment_date = `${day}-${month}-${year}`
+        
         // Time in 24h format HH:MM
-        payload.appointment_time = appointment.start_time?.split('T')[1]?.substring(0, 5) || null
+        const hours = String(localDate.getUTCHours()).padStart(2, '0')
+        const minutes = String(localDate.getUTCMinutes()).padStart(2, '0')
+        payload.appointment_time = `${hours}:${minutes}`
     }
     if (fields.includes('Nome do Visitante')) payload.guest_name = appointment.guest_name
     if (fields.includes('Nome do Funcionário')) payload.host_name = appointment.host?.full_name

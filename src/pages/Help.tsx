@@ -38,11 +38,11 @@ export default function Help() {
           <div className="grid gap-3">
             <a href="mailto:suporte@nbapark.com" className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
               <Mail className="h-5 w-5 text-gray-500" />
-              <span className="text-gray-700">suporte@nbapark.com</span>
+              <span className="text-gray-700">humberto.neto@nbaparkgramado.com.br</span>
             </a>
-            <a href="tel:+5554991680204" className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+            <a href="https://wa.me/+5554991680204?text=preciso%20de%20ajuda" className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
               <Phone className="h-5 w-5 text-gray-500" />
-              <span className="text-gray-700">(51) 99999-9999</span>
+              <span className="text-gray-700">(54) 99168-0204</span>
             </a>
             <button className="flex items-center gap-3 p-4 bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors text-white">
               <MessageCircle className="h-5 w-5" />

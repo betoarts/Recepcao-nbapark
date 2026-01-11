@@ -55,6 +55,7 @@ export default function TouchLayout() {
       title: 'Gestão',
       items: [
         { label: 'Funcionários', icon: Users, path: '/employees', roles: ['receptionist', 'admin'] },
+        { label: 'Todas Reuniões', icon: Calendar, path: '/appointments', roles: ['receptionist', 'admin'] },
         { label: 'Departamentos', icon: Building2, path: '/departments', roles: ['receptionist', 'admin'] },
       ]
     },
