@@ -1,4 +1,4 @@
-# Recepção NBA Park
+# Recepção
 
 Sistema de gestão de recepção e agendamentos para o NBA Park, desenvolvido com tecnologias modernas para oferecer uma experiência ágil e interativa.
 
