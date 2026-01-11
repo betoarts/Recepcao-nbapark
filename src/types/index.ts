@@ -32,6 +32,7 @@ export interface Appointment {
   guest_name?: string;
   type: AppointmentType;
   created_by: string;
+  webhook_count?: number;
 }
 
 export interface Message {

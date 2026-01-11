@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Appointment, Employee } from '../types';
 import { format, parseISO, startOfDay, endOfDay } from 'date-fns';
-import { Loader2, Calendar, Search, User, Clock, Filter, X, Send, FileText, Pencil } from 'lucide-react';
+import { Loader2, Calendar, Search, User, Clock, Filter, X, Send, FileText, Pencil, Bell } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { toast } from 'sonner';
 import { Modal } from '../components/Layout/Modal';
@@ -65,11 +65,20 @@ export default function AllAppointments() {
     
     setSendingWebhook(true);
     try {
-      const { error } = await supabase.functions.invoke('send-appointment-webhook', {
+      const { data, error } = await supabase.functions.invoke('send-appointment-webhook', {
         body: { appointment_id: selectedAppointment.id }
       });
       
       if (error) throw error;
+      
+      // Update local state with new webhook count
+      const newCount = data?.webhook_count || (selectedAppointment.webhook_count || 0) + 1;
+      setSelectedAppointment({ ...selectedAppointment, webhook_count: newCount });
+      setAppointments(prev => prev.map(apt => 
+        apt.id === selectedAppointment.id 
+          ? { ...apt, webhook_count: newCount } 
+          : apt
+      ));
       
       toast.success('Webhook enviado com sucesso!');
     } catch (err: unknown) {
@@ -190,6 +199,7 @@ export default function AllAppointments() {
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Funcionário</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Visitante</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tipo</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Enviados</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -238,6 +248,16 @@ export default function AllAppointments() {
                         {getTypeLabel(apt.type)}
                       </span>
                     </td>
+                    <td className="px-4 py-4 text-center">
+                      {(apt.webhook_count || 0) > 0 ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                          <Bell className="h-3 w-3" />
+                          {apt.webhook_count}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 text-xs">—</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -273,11 +293,17 @@ export default function AllAppointments() {
                 </button>
               </div>
 
-              {/* Type Badge */}
-              <div className="mb-6">
+              {/* Type Badge & Webhook Count */}
+              <div className="mb-6 flex items-center gap-3 flex-wrap">
                 <span className={cn("px-3 py-1.5 rounded-full text-sm font-medium", getTypeColor(selectedAppointment.type))}>
                   {getTypeLabel(selectedAppointment.type)}
                 </span>
+                {(selectedAppointment.webhook_count || 0) > 0 && (
+                  <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-sm font-medium bg-green-100 text-green-700">
+                    <Bell className="h-4 w-4" />
+                    {selectedAppointment.webhook_count} envio(s)
+                  </span>
+                )}
               </div>
 
               {/* Details */}

@@ -116,8 +116,15 @@ serve(async (req) => {
         throw new Error(`Failed to send webhook: ${text}`)
     }
 
-    console.log('[WEBHOOK] Success!');
-    return new Response(JSON.stringify({ success: true }), {
+    // 5. Increment webhook_count in database
+    const currentCount = appointment.webhook_count || 0;
+    await supabaseClient
+        .from('appointments')
+        .update({ webhook_count: currentCount + 1 })
+        .eq('id', appointment_id);
+
+    console.log('[WEBHOOK] Success! Updated webhook_count to:', currentCount + 1);
+    return new Response(JSON.stringify({ success: true, webhook_count: currentCount + 1 }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })

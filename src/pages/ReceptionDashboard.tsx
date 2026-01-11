@@ -212,8 +212,8 @@ export default function ReceptionDashboard() {
                      <div>
                         <h2 className="text-2xl font-bold text-gray-900">{selectedEmployee.full_name}</h2>
                         <p className="text-gray-500">{(selectedEmployee as any).departments?.name || 'Departamento Geral'}</p>
-                        <div className={cn("mt-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider inline-flex border", getStatusColor(selectedEmployee.status))}>
-                           {getStatusLabel(selectedEmployee.status)}
+                        <div className={cn("mt-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider inline-flex border", getStatusColor(getComputedStatus(selectedEmployee)))}>
+                           {getStatusLabel(getComputedStatus(selectedEmployee))}
                         </div>
                      </div>
                   </div>

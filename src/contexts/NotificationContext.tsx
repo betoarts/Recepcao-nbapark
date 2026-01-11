@@ -1,18 +1,10 @@
-import { createContext, useContext, useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { MessageSquare, Calendar, Bell } from 'lucide-react';
-
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface NotificationContextType {}
-
-const NotificationContext = createContext<NotificationContextType>({});
-
-export function useNotification() {
-  return useContext(NotificationContext);
-}
+import { NotificationContext } from './NotificationContextDef';
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const { user, employee } = useAuth();
@@ -20,50 +12,105 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const lastCheckedMeetingsRef = useRef<Set<string>>(new Set());
   const sentRemindersRef = useRef<Set<string>>(new Set());
+  const startedMeetingsRef = useRef<Set<string>>(new Set());
 
-  // Check for ended meetings (for receptionists)
+  // Check for started and ended meetings (for receptionists)
   useEffect(() => {
     if (!user || employee?.role !== 'receptionist') return;
 
-    const checkEndedMeetings = async () => {
+    const checkMeetings = async () => {
       const now = new Date();
       const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
       
-      // Find meetings that ended in the last 5 minutes
+      // Find meetings that STARTED in the last 5 minutes
+      const { data: startedMeetings } = await supabase
+        .from('appointments')
+        .select(`
+          id,
+          title,
+          start_time,
+          host:employees!host_id (id, full_name)
+        `)
+        .gte('start_time', fiveMinutesAgo.toISOString())
+        .lte('start_time', now.toISOString());
+
+      // Find meetings that ENDED in the last 5 minutes
       const { data: endedMeetings } = await supabase
         .from('appointments')
         .select(`
           id,
           title,
           end_time,
-          host:employees!host_id (full_name)
+          host:employees!host_id (id, full_name)
         `)
         .gte('end_time', fiveMinutesAgo.toISOString())
         .lte('end_time', now.toISOString());
 
+      // Process STARTED meetings
+      if (startedMeetings) {
+        for (const meeting of startedMeetings) {
+          const startKey = `start-${meeting.id}`;
+          if (!startedMeetingsRef.current.has(startKey)) {
+            startedMeetingsRef.current.add(startKey);
+            const hostName = (meeting.host as { id: string; full_name: string }[] | null)?.[0]?.full_name || 'Funcionário';
+            
+            // Save to notifications table
+            await supabase.from('notifications').insert({
+              recipient_id: user.id,
+              type: 'appointment',
+              title: 'Reunião Iniciada',
+              content: `"${meeting.title}" de ${hostName} começou agora.`,
+              related_id: meeting.id,
+              read: false
+            });
+            
+            toast.info('Reunião Iniciada', {
+              description: `"${meeting.title}" de ${hostName} começou agora.`,
+              icon: <Calendar className="h-4 w-4 text-green-600" />,
+            });
+          }
+        }
+      }
+
+      // Process ENDED meetings  
       if (endedMeetings) {
-        endedMeetings.forEach((meeting) => {
-          // Only alert if we haven't already alerted for this meeting
-          if (!lastCheckedMeetingsRef.current.has(meeting.id)) {
-            lastCheckedMeetingsRef.current.add(meeting.id);
-            toast.info(`Reunião Encerrada`, {
-              description: `"${meeting.title}" de ${(meeting.host as { full_name: string }[] | null)?.[0]?.full_name || 'Funcionário'} terminou.`,
+        for (const meeting of endedMeetings) {
+          const endKey = `end-${meeting.id}`;
+          if (!lastCheckedMeetingsRef.current.has(endKey)) {
+            lastCheckedMeetingsRef.current.add(endKey);
+            const hostName = (meeting.host as { id: string; full_name: string }[] | null)?.[0]?.full_name || 'Funcionário';
+            
+            // Save to notifications table
+            await supabase.from('notifications').insert({
+              recipient_id: user.id,
+              type: 'appointment',
+              title: 'Reunião Encerrada',
+              content: `"${meeting.title}" de ${hostName} terminou.`,
+              related_id: meeting.id,
+              read: false
+            });
+            
+            toast.info('Reunião Encerrada', {
+              description: `"${meeting.title}" de ${hostName} terminou.`,
               icon: <Bell className="h-4 w-4 text-amber-600" />,
             });
           }
-        });
+        }
       }
       
-      // Clean old entries (older than 10 minutes)
+      // Clean old entries periodically
       if (lastCheckedMeetingsRef.current.size > 100) {
         lastCheckedMeetingsRef.current.clear();
+      }
+      if (startedMeetingsRef.current.size > 100) {
+        startedMeetingsRef.current.clear();
       }
     };
 
     // Check every minute
-    const interval = setInterval(checkEndedMeetings, 60000);
+    const interval = setInterval(checkMeetings, 60000);
     // Initial check
-    checkEndedMeetings();
+    checkMeetings();
 
     return () => clearInterval(interval);
   }, [user, employee?.role]);
